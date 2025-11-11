@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Interface</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container quiz-container">
+        
+        <div id="quizHeader" class="quiz-header">
+            <span id="quizTitle"></span>
+            <span id="timerDisplay">Timer: 10:00</span>
+        </div>
+
+        <div id="quizInterface">
+            <h3 id="questionCount">Question 1 of 5</h3>
+            <p id="questionText" class="question-text">Loading question...</p>
+            
+            <div id="optionsList" class="options-list">
+                </div>
+            
+            <div class="quiz-controls">
+                <button id="nextButton" onclick="nextQuestion()">Next Question</button>
+                <button id="submitButton" class="submit-btn" onclick="submitQuiz()" style="display: none;">Submit Quiz</button>
+            </div>
+        </div>
+
+        <div id="resultsPage" class="results-page" style="display: none;">
+            <h2>🏆 Quiz Results</h2>
+            <div class="result-details">
+                <p>Total Questions: <span id="resTotalQues"></span></p>
+                <p class="correct">Correct Answers: <span id="resCorrect"></span></p>
+                <p class="wrong">Wrong Answers: <span id="resWrong"></span></p>
+                <p class="score">Percentage Score: <span id="resPercentage"></span></p>
+                <p class="remark" id="resRemark"></p>
+            </div>
+            <button onclick="window.location.href='dashboard.html'">Go to Dashboard</button>
+        </div>
+
+    </div>
+
+    <script>
+        // Quiz Data - Questions and Correct Answers
+        const QUIZ_DATA = {
+            science: [
+                { q: "What is the chemical symbol for water?", options: ["O2", "H2O", "CO2", "N2"], a: "H2O" },
+                { q: "Which planet is known as the Red Planet?", options: ["Earth", "Mars", "Jupiter", "Venus"], a: "Mars" },
+                { q: "What gas do plants primarily absorb?", options: ["Oxygen", "Nitrogen", "Carbon Dioxide", "Hydrogen"], a: "Carbon Dioxide" },
+                { q: "The powerhouse of the cell is the:", options: ["Nucleus", "Ribosome", "Mitochondria", "Cytoplasm"], a: "Mitochondria" },
+                { q: "What is the unit of electric current?", options: ["Volt", "Watt", "Ampere", "Ohm"], a: "Ampere" }
+            ],
+            reasoning: [
+                { q: "If A is 1, B is 2, and so on, what is the value of C.A.T?", options: ["24", "26", "28", "30"], a: "24" },
+                { q: "Find the odd one out: Apple, Orange, Potato, Banana.", options: ["Apple", "Orange", "Potato", "Banana"], a: "Potato" },
+                { q: "Complete the series: 2, 4, 8, 16, ___", options: ["20", "24", "32", "40"], a: "32" },
+                { q: "Which word does NOT belong: Lion, Tiger, Wolf, Elephant.", options: ["Lion", "Tiger", "Wolf", "Elephant"], a: "Elephant" },
+                { q: "If 'pen' is 'pencil', 'pencil' is 'eraser', then what do you write with?", options: ["Pen", "Pencil", "Eraser", "Paper"], a: "Pencil" }
+            ],
+            cs: [
+                { q: "What does HTML stand for?", options: ["Hyper Text Markup Language", "High-level Transfer Machine Language", "Hyperlink Text Management Logic", "Home Tool Markup Language"], a: "Hyper Text Markup Language" },
+                { q: "Which is NOT a programming language?", options: ["Python", "Java", "XML", "C++"], a: "XML" },
+                { q: "What is the full form of LAN?", options: ["Local Area Network", "Logarithm Array Notation", "Language Access Node", "Large Array Network"], a: "Local Area Network" },
+                { q: "Which data structure uses LIFO (Last-In, First-Out)?", options: ["Queue", "Stack", "Array", "Linked List"], a: "Stack" },
+                { q: "The term 'bug' in computing mainly means:", options: ["A moth in the computer", "A program error", "A type of memory chip", "A peripheral device"], a: "A program error" }
+            ]
+        };
+
+        let currentCategory = localStorage.getItem('quizCategory');
+        let questions = QUIZ_DATA[currentCategory] || QUIZ_DATA['science'];
+        let currentQuestionIndex = 0;
+        let userAnswers = JSON.parse(localStorage.getItem('userAnswers')) || new Array(questions.length).fill(null);
+        let timerSeconds = 600; // 10 minutes (optional timer)
+        let timerInterval;
+
+        // Check login and category
+        if (!localStorage.getItem('isAuthenticated') || !currentCategory) {
+            window.location.href = 'index.html';
+        }
+        
+        document.getElementById('quizTitle').textContent = currentCategory.toUpperCase() + " Quiz";
+
+        function startTimer() {
+            const timerDisplay = document.getElementById('timerDisplay');
+            timerInterval = setInterval(() => {
+                let minutes = Math.floor(timerSeconds / 60);
+                let seconds = timerSeconds % 60;
+                timerDisplay.textContent = `Timer: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                if (timerSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    alert("Time's up! Submitting your quiz now.");
+                    submitQuiz();
+                }
+                timerSeconds--;
+            }, 1000);
+        }
+
+        function displayQuestion() {
+            const q = questions[currentQuestionIndex];
+            document.getElementById('questionCount').textContent = `Question ${currentQuestionIndex + 1} of ${questions.length}`;
+            document.getElementById('questionText').textContent = q.q;
+            
+            const optionsList = document.getElementById('optionsList');
+            optionsList.innerHTML = '';
+            
+            q.options.forEach((option, index) => {
+                const isChecked = userAnswers[currentQuestionIndex] === option;
+                
+                optionsList.innerHTML += `
+                    <label class="option-label">
+                        <input type="radio" name="currentQuestion" value="${option}" ${isChecked ? 'checked' : ''} onclick="saveAnswer('${option}')">
+                        ${option}
+                    </label>
+                `;
+            });
+            
+            // Handle Next/Submit button visibility
+            const nextBtn = document.getElementById('nextButton');
+            const submitBtn = document.getElementById('submitButton');
+
+            if (currentQuestionIndex === questions.length - 1) {
+                nextBtn.style.display = 'none';
+                submitBtn.style.display = 'block';
+            } else {
+                nextBtn.style.display = 'block';
+                submitBtn.style.display = 'none';
+            }
+        }
+        
+        function saveAnswer(answer) {
+            userAnswers[currentQuestionIndex] = answer;
+            // Store answers temporarily in local storage
+            localStorage.setItem('userAnswers', JSON.stringify(userAnswers));
+        }
+
+        function nextQuestion() {
+            if (currentQuestionIndex < questions.length - 1) {
+                currentQuestionIndex++;
+                displayQuestion();
+            }
+        }
+
+        function calculateResults() {
+            clearInterval(timerInterval);
+            let correctCount = 0;
+            
+            questions.forEach((q, index) => {
+                if (userAnswers[index] === q.a) {
+                    correctCount++;
+                }
+            });
+
+            const totalQues = questions.length;
+            const wrongCount = totalQues - correctCount;
+            const percentage = (correctCount / totalQues) * 100;
+            
+            let remark = "";
+            if (percentage >= 90) {
+                remark = "Excellent! 🎉";
+            } else if (percentage >= 70) {
+                remark = "Good! Keep up the great work.";
+            } else if (percentage >= 50) {
+                remark = "Need Improvement. Review the topics.";
+            } else {
+                remark = "Poor performance. Significant effort required.";
+            }
+
+            return { totalQues, correctCount, wrongCount, percentage: percentage.toFixed(2) + '%', remark };
+        }
+
+        function submitQuiz() {
+            const results = calculateResults();
+            
+            // Display Results
+            document.getElementById('quizInterface').style.display = 'none';
+            document.getElementById('resultsPage').style.display = 'block';
+            
+            document.getElementById('resTotalQues').textContent = results.totalQues;
+            document.getElementById('resCorrect').textContent = results.correctCount;
+            document.getElementById('resWrong').textContent = results.wrongCount;
+            document.getElementById('resPercentage').textContent = results.percentage;
+            document.getElementById('resRemark').textContent = results.remark;
+
+            // Optional: Clear session data after displaying results
+            // localStorage.removeItem('userAnswers');
+            // localStorage.removeItem('quizCategory'); 
+        }
+
+        // Initialize quiz
+        displayQuestion();
+        startTimer(); // Start the timer when the quiz loads
+    </script>
+</body>
+</html>

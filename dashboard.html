@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container dashboard-container">
+        <h2 id="welcomeMessage">Welcome, Student!</h2>
+        <p>Please select a quiz category to begin:</p>
+        
+        <div class="category-list">
+            <button class="category-card" onclick="startQuiz('science')">
+                <h3>🧪 Science</h3>
+                <p>Test your knowledge of Physics, Chemistry, and Biology.</p>
+            </button>
+            <button class="category-card" onclick="startQuiz('reasoning')">
+                <h3>🧠 Reasoning</h3>
+                <p>Sharpen your logic and problem-solving skills.</p>
+            </button>
+            <button class="category-card" onclick="startQuiz('cs')">
+                <h3>💻 Computer Science</h3>
+                <p>Questions on programming, data structures, and algorithms.</p>
+            </button>
+        </div>
+        
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+
+    <script>
+        // Check Authentication on page load
+        if (localStorage.getItem('isAuthenticated') !== 'true') {
+            window.location.href = 'index.html';
+        }
+
+        document.getElementById('welcomeMessage').textContent = 'Welcome, ' + localStorage.getItem('studentRegNo') + '!';
+
+        function startQuiz(category) {
+            // Clear any previous quiz data
+            localStorage.removeItem('userAnswers');
+            localStorage.removeItem('quizCategory');
+            
+            // Start the new quiz
+            localStorage.setItem('quizCategory', category);
+            window.location.href = 'quiz.html';
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>
